@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Google Custom Search</title>
+    <style>
+        /* Dark theme styles */
+        body {
+            background-color: #333;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Simple spinner animation */
+        .loader {
+            border: 16px solid #444; /* Dark grey border */
+            border-top: 16px solid #8BC34A; /* Green color for the top border */
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Table styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table, th, td {
+            border: 1px solid #777;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #555;
+        }
+
+        td {
+            background-color: #444;
+        }
+
+        /* Status code cell background colors */
+        .status-code-ok {
+            background-color: #006400; /* Dark green */
+        }
+
+        .status-code-error {
+            background-color: #8B0000; /* Dark red */
+        }
+
+        /* Form styles */
+        form {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            border: 1px solid #555;
+            background-color: #444;
+            color: #fff;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-left: 10px;
+            background-color: #555;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #666;
+        }
+
+        .length-button {
+            float: right;
+        }
+
+        /* Link styles */
+        a {
+            color: #8BC34A;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* Header styles */
+        h1 {
+            text-align: center;
+        }
+
+        /* The Modal (background) */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgb(0,0,0); /* Fallback color */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+        
+        /* Modal Content */
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Could be more or less, depending on screen size */
+            color: black;
+        }
+        
+        /* The Close Button */
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Google Custom Search</h1>
+    <form id="searchForm">
+        <input type="text" id="searchQuery" placeholder="Enter search keyword" required>
+        <button type="submit">Search</button>
+        <button type="button" onclick="window.location.href='http://127.0.0.1:5000/';">Reset</button>
+    </form>
+    <div id="loader" class="loader" style="display: none;"></div>
+    <div id="searchResults"></div>
+    <div id="rawSearchResults"></div>
+    <!-- The Modal -->
+    <div id="contentModal" class="modal">
+        <!-- Modal content -->
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Content Preview</h2>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+    <script>
+        document.getElementById('searchForm').onsubmit = function(event) {
+            event.preventDefault();
+            var searchQuery = document.getElementById('searchQuery').value;
+            var xhr = new XMLHttpRequest();
+            var loader = document.getElementById('loader');
+            var scrapeResultsDiv = document.getElementById('searchResults');
+            var rawResultsDiv = document.getElementById('rawSearchResults');
+    
+            // Clear previous results and show the loader
+            scrapeResultsDiv.innerHTML = '';
+            rawResultsDiv.innerHTML = '';
+            loader.style.display = 'block';
+    
+            xhr.open('GET', '/search?q=' + encodeURIComponent(searchQuery), true);
+            xhr.onload = function() {
+                // Hide the loader when the response is received
+                loader.style.display = 'none';
+    
+                if (xhr.status === 200) {
+                    var combinedResults = JSON.parse(xhr.responseText);
+    
+                    // Create and populate the table with scrape results
+                    var table = document.createElement('table');
+                    var thead = document.createElement('thead');
+                    var tbody = document.createElement('tbody');
+                    var headerRow = document.createElement('tr');
+    
+                    // Define the table headers
+                    ['URL', 'Status Code', 'Error', 'Article Content Length', 'Article Content DOM Length'].forEach(function(header) {
+                        var th = document.createElement('th');
+                        th.textContent = header;
+                        headerRow.appendChild(th);
+                    });
+    
+                    thead.appendChild(headerRow);
+                    table.appendChild(thead);
+    
+                    // Populate the table body with scrape results
+                    combinedResults.scrape_results.forEach(function(result) {
+                        var tr = document.createElement('tr');
+                        var tdUrl = document.createElement('td');
+                        var link = document.createElement('a');
+                        link.setAttribute('href', result.url);
+                        link.setAttribute('target', '_blank');
+                        link.textContent = result.url;
+                        tdUrl.appendChild(link);
+                        tr.appendChild(tdUrl);
+    
+                        var tdStatusCode = document.createElement('td');
+                        tdStatusCode.textContent = result.status_code;
+                        // Set the background color based on the status code
+                        tdStatusCode.className = result.status_code === 200 ? 'status-code-ok' : 'status-code-error';
+                        tr.appendChild(tdStatusCode);
+    
+                        var tdError = document.createElement('td');
+                        tdError.textContent = result.error || '';
+                        tr.appendChild(tdError);
+    
+                        var tdArticleContentLength = document.createElement('td');
+                        tdArticleContentLength.textContent = result.article_content_length;
+                        var tdArticleContentLengthButton = document.createElement('button');
+                        tdArticleContentLengthButton.textContent = 'Show';
+                        tdArticleContentLengthButton.classList.add('length-button');
+                        tdArticleContentLengthButton.onclick = function() {
+                            showContent(result.row_id, 'content');
+                        };
+                        tdArticleContentLength.appendChild(tdArticleContentLengthButton);
+                        tr.appendChild(tdArticleContentLength);
+    
+                        var tdArticleContentDomLength = document.createElement('td');
+                        tdArticleContentDomLength.textContent = result.article_content_dom_length;
+                        var tdArticleContentDomLengthButton = document.createElement('button');
+                        tdArticleContentDomLengthButton.textContent = 'Show';
+                        tdArticleContentDomLengthButton.classList.add('length-button');
+                        tdArticleContentDomLengthButton.onclick = function() {
+                            showContent(result.row_id, 'dom');
+                        };
+                        tdArticleContentDomLength.appendChild(tdArticleContentDomLengthButton);
+                        tr.appendChild(tdArticleContentDomLength);
+    
+                        tbody.appendChild(tr);
+                    });
+    
+                    table.appendChild(tbody);
+                    scrapeResultsDiv.appendChild(table);
+    
+                    // Display the raw JSON response from the Google Custom Search API
+                    rawResultsDiv.innerHTML = '<h2>Raw Search Results</h2><pre>' + JSON.stringify(combinedResults.raw_search_results, null, 2) + '</pre>';
+                } else {
+                    alert('Error fetching search results');
+                }
+            };
+            xhr.onerror = function() {
+                // Hide the loader if there is an error
+                loader.style.display = 'none';
+                alert('Error fetching search results');
+            };
+            xhr.send();
+        };
+    
+        // Get the modal
+        var modal = document.getElementById('contentModal');
+        // Get the <span> element that closes the modal
+        var span = document.getElementsByClassName("close")[0];
+
+        // Function to fetch and display content by row ID
+        function showContent(rowId, contentType) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/content/' + rowId, true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var contentData = JSON.parse(xhr.responseText);
+                    var content = contentType === 'dom' ? contentData.article_content_dom : contentData.article_content;
+                    // Set the content in the modal and display it
+                    document.getElementById('modalContent').innerText = content;
+                    document.getElementById('contentModal').style.display = "block"; // Ensure this ID matches the modal's ID
+                } else {
+                    alert('Error fetching content');
+                }
+            };
+            xhr.onerror = function() {
+                alert('Error fetching content');
+            };
+            xhr.send();
+        }
+
+        // Get the modal
+        var modal = document.getElementById('contentModal'); // Ensure this ID matches the modal's ID
+        // Get the <span> element that closes the modal
+        var span = document.getElementsByClassName("close")[0];
+
+        // When the user clicks on <span> (x), close the modal
+        span.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        // When the user clicks anywhere outside of the modal, close it
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>

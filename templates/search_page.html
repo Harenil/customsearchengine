@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Google Custom Search</title>
+</head>
+<body>
+    <h1>Google Custom Search</h1>
+    <form id="searchForm">
+        <input type="text" id="searchQuery" placeholder="Enter search keyword" required>
+        <button type="submit">Search</button>
+    </form>
+    <div id="searchResults"></div>
+
+    <script>
+        document.getElementById('searchForm').onsubmit = function(event) {
+            event.preventDefault();
+            var searchQuery = document.getElementById('searchQuery').value;
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/search?q=' + encodeURIComponent(searchQuery), true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var results = JSON.parse(xhr.responseText);
+                    var resultsDiv = document.getElementById('searchResults');
+                    resultsDiv.innerHTML = '';
+                    results.forEach(function(result) {
+                        var p = document.createElement('p');
+                        var statusText = 'URL: ' + result.url + ' - Status Code: ' + result.status_code;
+                        if (result.error) {
+                            statusText += ' - Error: ' + result.error;
+                        }
+                        p.textContent = statusText;
+                        resultsDiv.appendChild(p);
+                    });
+                } else {
+                    alert('Error fetching search results');
+                }
+            };
+            xhr.send();
+        };
+    </script>
+</body>
+</html>
