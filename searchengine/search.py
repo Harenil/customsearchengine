@@ -6,6 +6,7 @@ from .scraping import scrape_and_store  # Import scrape_and_store here
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 GOOGLE_CSE_ID = os.getenv('GOOGLE_CSE_ID')
 
+# Searches Google Custom Search Engine using the provided keyword.
 def search_google(keyword):
     search_url = f"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_KEY}&cx={GOOGLE_CSE_ID}&q={keyword}"
     response = requests.get(search_url)
