@@ -67,6 +67,7 @@ def store_scraped_content(url, keyword, article_content, article_content_dom, he
             'article_content_unstructured_length': article_content_unstructured_length,  # Include length of unstructured content
             'row_id': row_id
         }
+    """
     with get_db_connection() as conn:
         try:
             conn.execute('''CREATE TABLE IF NOT EXISTS headings (
@@ -112,3 +113,4 @@ def store_scraped_content(url, keyword, article_content, article_content_dom, he
             'article_content_dom_length': article_content_dom_length,
             'row_id': row_id
         }
+    """
