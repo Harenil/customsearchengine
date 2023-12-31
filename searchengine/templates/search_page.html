@@ -193,7 +193,7 @@
                     var headerRow = document.createElement('tr');
     
                     // Define the table headers
-                    ['URL', 'Status Code', 'Error', 'Article Content Length', 'Article Content DOM Length'].forEach(function(header) {
+                    ['URL', 'Status Code', 'Error', 'Article Content Length', 'Article Content DOM Length','Unstructured Content Length'].forEach(function(header) {
                         var th = document.createElement('th');
                         th.textContent = header;
                         headerRow.appendChild(th);
@@ -244,6 +244,17 @@
                         };
                         tdArticleContentDomLength.appendChild(tdArticleContentDomLengthButton);
                         tr.appendChild(tdArticleContentDomLength);
+
+                        var tdUnstructuredContentLength = document.createElement('td');
+                        tdUnstructuredContentLength.textContent = result.article_content_unstructured_length;
+                        var tdUnstructuredContentLengthButton = document.createElement('button');
+                        tdUnstructuredContentLengthButton.textContent = 'Show';
+                        tdUnstructuredContentLengthButton.classList.add('length-button');
+                        tdUnstructuredContentLengthButton.onclick = function() {
+                            showContent(result.row_id, 'unstructured');
+                        };
+                        tdUnstructuredContentLength.appendChild(tdUnstructuredContentLengthButton);
+                        tr.appendChild(tdUnstructuredContentLength);
     
                         tbody.appendChild(tr);
                     });
@@ -277,10 +288,56 @@
             xhr.onload = function() {
                 if (xhr.status === 200) {
                     var contentData = JSON.parse(xhr.responseText);
-                    var content = contentType === 'dom' ? contentData.article_content_dom : contentData.article_content;
+                    var content;
+                    if (contentType === 'dom') {
+                        content = contentData.article_content_dom;
+                    } else if (contentType === 'content') {
+                        content = contentData.article_content;
+                    } else if (contentType === 'unstructured') {
+                        var unstructuredContent = contentData.article_content_unstructured_json;
+                        if (unstructuredContent) {
+                            try {
+                                // Parse the JSON and format it with newlines
+                                var unstructuredData = JSON.parse(unstructuredContent);
+                                content = unstructuredData.map(function(section) {
+                                    var sectionContent = '';
+                                    sectionContent += 'type: ' + section.type + '\n';
+                                    sectionContent += 'title: ' + section.title + '\n';
+                                    sectionContent += 'content:\n';
+                                    for (var contentType in section.content) {
+                                        sectionContent += contentType + ':\n';
+                                        var contentItems = section.content[contentType];
+                                        if (Array.isArray(contentItems)) {
+                                            // Handle arrays of content items (e.g., paragraphs, spans)
+                                            contentItems.forEach(function(item) {
+                                                sectionContent += item + '\n';
+                                            });
+                                        } else if (typeof contentItems === 'object') {
+                                            // Handle nested objects (e.g., lists with items)
+                                            for (var key in contentItems) {
+                                                var items = contentItems[key];
+                                                if (Array.isArray(items)) {
+                                                    sectionContent += key + ':\n';
+                                                    items.forEach(function(item) {
+                                                        sectionContent += '- ' + item + '\n';
+                                                    });
+                                                }
+                                            }
+                                        }
+                                    }
+                                    return sectionContent;
+                                }).join('\n\n');
+                            } catch (e) {
+                                console.error('Error parsing JSON:', e);
+                                content = 'Error displaying unstructured content: Invalid JSON data.';
+                            }
+                        } else {
+                            content = 'No unstructured content available.';
+                        }
+                    }
                     // Set the content in the modal and display it
                     document.getElementById('modalContent').innerText = content;
-                    document.getElementById('contentModal').style.display = "block"; // Ensure this ID matches the modal's ID
+                    document.getElementById('contentModal').style.display = "block";
                 } else {
                     alert('Error fetching content');
                 }

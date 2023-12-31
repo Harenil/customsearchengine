@@ -3,8 +3,11 @@ from bs4 import BeautifulSoup
 import re
 import logging
 from .database import store_scraped_content
-from unstructured.partition.html import partition_html
+from unstructured.partition.html import *
 from unstructured.documents.elements import *
+from unstructured.partition.auto import *
+import json
+from unstructured.cleaners.core import *
 
 def fetch_page(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML, like Gecko) Version/7.0.3 Safari/7046A194A'}
@@ -91,8 +94,8 @@ def scrape_and_store(url, keyword):
         if page_response.status_code == 200:
             article_content, article_content_dom = scrape_content(page_response.text)
             headings = extract_headings(page_response.text)  # Extract headings from the content
-            article_content_unstructured = scrape_with_unstructured(url)  # Scrape with unstructured library
-            return store_scraped_content(url, keyword, article_content, article_content_dom, headings, article_content_unstructured)  # Pass unstructured content to store function
+            article_content_unstructured_json = scrape_with_unstructured(url)  # Scrape with unstructured library and get JSON
+            return store_scraped_content(url, keyword, article_content, article_content_dom, headings, article_content_unstructured_json)  # Pass JSON to store function
         else:
             return {
                 'status_code': page_response.status_code,
@@ -100,6 +103,7 @@ def scrape_and_store(url, keyword):
                 'article_content_length': 0,
                 'article_content_dom_length': 0,
                 'article_content_unstructured_length': 0,  # Include length of unstructured content
+                'article_content_unstructured_json': None,  # Include JSON of unstructured content
                 'row_id': None
             }
     except Exception as e:
@@ -110,6 +114,7 @@ def scrape_and_store(url, keyword):
             'article_content_length': 0,
             'article_content_dom_length': 0,
             'article_content_unstructured_length': 0,  # Include length of unstructured content
+            'article_content_unstructured_json': None,  # Include JSON of unstructured content
             'row_id': None
         }
         
@@ -119,11 +124,24 @@ def scrape_with_unstructured(url):
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML, like Gecko) Version/7.0.3 Safari/7046A194A'
         }
-        elements = partition_html(url=url, skip_headers_and_footers=True, headers=headers)
-        article_content_unstructured = "\n\n".join([
-            str(el) for el in elements if isinstance(el, NarrativeText) or isinstance(el, Title)
-        ])
-        return article_content_unstructured
+        elements = partition_html(url=url, html_assemble_articles=True, headers=headers)
+
+        sections = []
+        current_section = None
+
+        for el in elements:
+            if isinstance(el, Title) and el.tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+                # Start a new section for each title
+                current_section = {"type": el.tag, "title": str(el), "content": {}}
+                sections.append(current_section)
+            elif current_section is not None:
+                # Add content to the current section
+                el_tag = el.tag if el.tag else 'other'
+                if el_tag not in current_section["content"]:
+                    current_section["content"][el_tag] = []
+                current_section["content"][el_tag].append(clean_non_ascii_chars(clean(replace_unicode_quotes(str(el)), extra_whitespace=True)))
+
+        return json.dumps(sections)  # Convert the list of sections to JSON string
     except ValueError as e:
         # Print custom error message without traceback
         print(f"An error occurred while scraping {url} with unstructured: {e}")

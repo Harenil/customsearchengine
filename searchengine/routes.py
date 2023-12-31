@@ -19,7 +19,7 @@ def index():
     return render_template('search_page.html')
 
 @app.route('/search', methods=['GET'])
-def search():
+def new_search():
     keyword = request.args.get('q', '')
     if not keyword:
         return jsonify({'error': 'Missing search keyword'}), 400
@@ -36,11 +36,12 @@ def search():
 @app.route('/content/<int:row_id>', methods=['GET'])
 def get_content(row_id):
     with get_db_connection() as conn:
-        content = conn.execute('SELECT article_content, article_content_dom FROM headings WHERE id = ?', (row_id,)).fetchone()
+        content = conn.execute('SELECT article_content, article_content_dom, article_content_unstructured_json FROM headings WHERE id = ?', (row_id,)).fetchone()
         if content:
             return jsonify({
                 'article_content': content['article_content'],
-                'article_content_dom': content['article_content_dom']
+                'article_content_dom': content['article_content_dom'],
+                'article_content_unstructured_json': content['article_content_unstructured_json']
             })
         else:
             return jsonify({'error': 'Content not found'}), 404

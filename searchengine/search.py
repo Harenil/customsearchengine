@@ -29,5 +29,7 @@ def process_search_result(result, keyword):
         'error': scrape_store_result.get('error_message') if scrape_store_result else 'Scraping failed',
         'article_content_length': scrape_store_result.get('article_content_length') if scrape_store_result else 0,
         'article_content_dom_length': scrape_store_result.get('article_content_dom_length') if scrape_store_result else 0,
+        'article_content_unstructured_length': scrape_store_result.get('article_content_unstructured_length') if scrape_store_result else 0,
+        'article_content_unstructured_json': scrape_store_result.get('article_content_unstructured_json') if scrape_store_result else None,
         'row_id': scrape_store_result.get('row_id') if scrape_store_result else None
     }
